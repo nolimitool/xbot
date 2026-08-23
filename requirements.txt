@@ -1,5 +1,5 @@
 twikit==2.3.3
 curl_cffi>=0.7.0
-# Playwright HANYA untuk grab cookies via browser (desktop Linux/Mac).
-# Di Termux gak dipakai (Chromium x86 gak jalan di ARM).
-playwright>=1.40.0; sys_platform != "linux" or "android" not in os.uname().version.lower()
+# Playwright HANYA untuk grab cookies via browser (opsional, desktop Linux/macOS).
+# Di Termux gak dipakai (Chromium x86 gak jalan di ARM). Install manual kalau perlu:
+#   pip install playwright && playwright install chromium
