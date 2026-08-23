@@ -10,6 +10,12 @@ Engine: **twikit** (login otomatis via user:pass, cookies disimpan sendiri).
 Gak perlu devtools. Gak perlu ambil `auth_token`/`ct0` manual (kecuali mau pakai
 mode cookies — lihat bawah).
 
+> 🔧 **Catatan teknis:** twikit versi terbaru (2.3.3) rusak sejak X ubah format
+> webpack Maret 2026 (`Couldn't get KEY_BYTE indices`). Repo ini sudah sertakan
+> `twikit_patches.py` yang **otomatis fix** bug itu + ganti TLS ke impersonate
+> Chrome (curl_cffi) biar gak ke-detect datacenter. Gak perlu utak-atik
+> site-packages.
+
 ---
 
 ## 📱 INSTAL DI TERMUX (Android)
@@ -17,17 +23,17 @@ mode cookies — lihat bawah).
 Buka aplikasi **Termux**, lalu jalankan:
 
 ```bash
-# 1. Clone repo
+# 1. Install git + clone repo
 pkg install -y git
-git clone <URL_REPO_LU> xbot
+git clone https://github.com/Gfast416/xbot.git
 cd xbot
 
-# 2. Auto-setup (install python, rust, venv, dependencies)
+# 2. Auto-setup (install python, rust, openssl, venv, dependencies)
 bash setup.sh
 ```
 
 `setup.sh` akan:
-- `pkg update` + install `python`, `python-dev`, `rust`, `git`
+- `pkg update` + install `python`, `python-dev`, `rust`, `openssl`, `pkg-config`, `git`
 - buat virtual env `.venv`
 - `pip install -r requirements.txt` (twikit + curl_cffi)
 
@@ -36,16 +42,20 @@ Setelah selesai, **setiap buka Termux baru**, aktifkan venv dulu:
 cd xbot && source .venv/bin/activate
 ```
 
-> 💡 **curl_cffi butuh Rust** buat compile. `setup.sh` sudah install `rust`
-> lewat `pkg`. Kalau install manual gagal di compile, jalankan
-> `pkg install rust` lalu `pip install curl_cffi` lagi.
+> 💡 **curl_cffi butuh Rust + OpenSSL** buat compile di Termux. `setup.sh` sudah
+> install keduanya. Kalau compile tetap gagal:
+> ```bash
+> pkg install -y rust openssl pkg-config
+> source .venv/bin/activate
+> pip install --force-reinstall --no-cache-dir curl_cffi
+> ```
 
 ---
 
 ## 🐧 INSTAL DI LINUX / macOS
 
 ```bash
-git clone <URL_REPO_LU> xbot
+git clone https://github.com/Gfast416/xbot.git
 cd xbot
 bash setup.sh
 source .venv/bin/activate
@@ -70,14 +80,13 @@ python xbot.py login --username Agent_Opet
 python xbot.py test
 ```
 
-Kalau ada akun pakai 2FA email:
+Kalau akun pakai 2FA email:
 ```bash
 python xbot.py add "user:email@mail.com:password"
 python xbot.py login --username user
 ```
 
-### Cara B — Pakai cookies (kalau login tetap gagal)
-Kalau suatu saat IP lu ke-block, pakai cookies dari browser:
+### Cara B — Pakai cookies (kalau login tetap gagal / IP ke-block)
 1. Login di browser HP (Chrome/Firefox).
 2. Pakai ekstensi **Cookie-Editor** → export JSON.
 3. Simpan jadi `cookies_Agent_Opet.json`, lalu:
@@ -154,14 +163,13 @@ Output contoh:
 
 ```
 xbot/
-├── xbot.py                    # bot utama (post/reply/like/retweet)
-├── twikit_patches.py          # fix otomatis twikit (KEY_BYTE + curl_cffi TLS)
-├── load_cookies_xbot.py       # masukkan cookies ke state
-├── grab_cookies_interactive.py# ambil cookies via browser (desktop)
+├── xbot.py                     # bot utama (post/reply/like/retweet)
+├── twikit_patches.py           # fix otomatis twikit (KEY_BYTE + curl_cffi TLS)
+├── load_cookies_xbot.py        # masukkan cookies ke state
+├── grab_cookies_interactive.py # ambil cookies via browser (desktop/Linux)
 ├── requirements.txt
-├── setup.sh                   # auto-install Termux/Linux
-├── accounts/                  # (opsional) template
-└── accounts.json              # state akun + cookies (auto-generated)
+├── setup.sh                    # auto-install Termux/Linux
+└── accounts.json               # state akun + cookies (auto-generated)
 ```
 
 ---
@@ -171,10 +179,11 @@ xbot/
 | Masalah | Solusi |
 |---------|--------|
 | `ModuleNotFoundError: twikit` | `source .venv/bin/activate` lalu `pip install -r requirements.txt` |
-| `Couldn't get KEY_BYTE indices` | Sudah di-fix otomatis oleh `twikit_patches.py`. Kalau masih muncul, pastikan `twikit_patches.py` ada di folder yg sama. |
-| Login `403 Forbidden` / Cloudflare block | IP lu (Termux) kemungkinan ke-block. Pakai `--proxy` residensial, atau cara cookies (lihat atas). |
-| `curl_cffi` gagal compile di Termux | `pkg install rust` lalu `pip install --force-reinstall curl_cffi` |
+| `Couldn't get KEY_BYTE indices` | Sudah di-fix otomatis `twikit_patches.py`. Pastikan file itu ada di folder yang sama dengan `xbot.py`. |
+| Login `403 Forbidden` / Cloudflare block | IP lu ke-block. Pakai `--proxy` residensial, atau cara cookies (lihat atas). |
+| `curl_cffi` gagal compile di Termux | `pkg install rust openssl pkg-config` lalu `pip install --force-reinstall --no-cache-dir curl_cffi` |
 | Tweet URL gak dikenali | Pakai format `https://x.com/user/status/1234567890` atau langsung ID numerik |
+| `command not found: python` | Di beberapa distro pakai `python3` — ganti `python` jadi `python3` |
 
 ---
 
