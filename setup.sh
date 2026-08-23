@@ -9,7 +9,7 @@ if [ -d "/data/data/com.termux" ] || [ -n "$TERMUX_VERSION" ]; then
     echo "[*] Termux terdeteksi"
     pkg update -y
     # python-dev di Termux sudah include di paket 'python' -> jangan install python-dev
-    pkg install -y python rust openssl pkg-config git
+    pkg install -y python rust openssl pkg-config git libxml2 libxslt
 else
     echo "[*] Linux/macOS detected"
     if ! command -v python3 >/dev/null; then
