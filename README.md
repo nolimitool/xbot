@@ -11,7 +11,7 @@ Gak perlu devtools. Gak perlu ambil `auth_token`/`ct0` manual (kecuali mau pakai
 mode cookies — lihat bawah).
 
 > 🔧 **Catatan teknis:** twikit versi terbaru (2.3.3) rusak sejak X ubah format
-> webpack Maret 2026 (`Couldn't get KEY_BYTE indices`). Repo ini sudah sertakan
+> webpack Maret 2026 (`Couldn't get KEY_BYTE indices`). Tool ini sudah sertakan
 > `twikit_patches.py` yang **otomatis fix** bug itu + ganti TLS ke impersonate
 > Chrome (curl_cffi) biar gak ke-detect datacenter. Gak perlu utak-atik
 > site-packages.
@@ -23,9 +23,9 @@ mode cookies — lihat bawah).
 Buka aplikasi **Termux**, lalu jalankan:
 
 ```bash
-# 1. Install git + clone repo
+# 1. Install git + clone source, lalu masuk folder
 pkg install -y git
-git clone https://github.com/Gfast416/xbot.git
+git clone <URL_REPO> xbot
 cd xbot
 
 # 2. Auto-setup (install python, rust, openssl, venv, dependencies)
@@ -55,7 +55,7 @@ cd xbot && source .venv/bin/activate
 ## 🐧 INSTAL DI LINUX / macOS
 
 ```bash
-git clone https://github.com/Gfast416/xbot.git
+git clone <URL_REPO> xbot
 cd xbot
 bash setup.sh
 source .venv/bin/activate
@@ -159,7 +159,7 @@ Output contoh:
 
 ---
 
-## 📁 STRUKTUR REPO
+## 📁 STRUKTUR TOOL
 
 ```
 xbot/
