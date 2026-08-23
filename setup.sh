@@ -8,12 +8,19 @@ echo "=== XBOT setup ==="
 if [ -d "/data/data/com.termux" ] || [ -n "$TERMUX_VERSION" ]; then
     echo "[*] Termux terdeteksi"
     pkg update -y
-    pkg install -y python python-dev rust git
+    # python-dev di Termux sudah include di paket 'python' -> jangan install python-dev
+    pkg install -y python rust openssl pkg-config git
 else
     echo "[*] Linux/macOS detected"
-    # butuh python3 + pip + git
     if ! command -v python3 >/dev/null; then
         echo "Install python3 dulu"; exit 1
+    fi
+    # Linux butuh python-dev + build tools buat compile curl_cffi
+    if command -v apt-get >/dev/null; then
+        sudo apt-get update -y
+        sudo apt-get install -y python3-dev python3-venv build-essential libssl-dev pkg-config rustc
+    elif command -v dnf >/dev/null; then
+        sudo dnf install -y python3-devel openssl-devel pkgconfig rust
     fi
 fi
 
@@ -27,7 +34,7 @@ source .venv/bin/activate
 pip install --upgrade pip
 
 # 4. install deps
-#   curl_cffi butuh rust di Termux -> sudah install rust di atas
+#   curl_cffi butuh rust + openssl di Termux/Linux -> sudah di-install di atas
 pip install -r requirements.txt
 
 echo ""
