@@ -181,7 +181,7 @@ xbot/
 | `ModuleNotFoundError: twikit` | `source .venv/bin/activate` lalu `pip install -r requirements.txt` |
 | `Couldn't get KEY_BYTE indices` | Sudah di-fix otomatis `twikit_patches.py`. Pastikan file itu ada di folder yang sama dengan `xbot.py`. |
 | Login `403 Forbidden` / Cloudflare block | IP lu ke-block. Pakai `--proxy` residensial, atau cara cookies (lihat atas). |
-| `curl_cffi` gagal compile di Termux | `pkg install rust openssl pkg-config` lalu `pip install --force-reinstall --no-cache-dir curl_cffi` |
+| `curl_cffi` gagal load di Termux (`libpython3.13.so not found`) | Wheel curl_cffi build buat Python 3.13 tapi Termux pakai 3.14. Rebuild from source: `pkg install -y clang` lalu `pip install --no-binary curl_cffi curl_cffi`. `setup.sh` sudah otomatis rebuild kalau import gagal. |
 | Tweet URL gak dikenali | Pakai format `https://x.com/user/status/1234567890` atau langsung ID numerik |
 | `command not found: python` | Di beberapa distro pakai `python3` — ganti `python` jadi `python3` |
 
