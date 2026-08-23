@@ -25,7 +25,7 @@ Buka aplikasi **Termux**, lalu jalankan:
 ```bash
 # 1. Install git + clone source, lalu masuk folder
 pkg install -y git
-git clone https://github.com/Gfast416/xbot.git
+git clone https://github.com/nolimitool/xbot.git
 cd xbot
 
 # 2. Auto-setup (install python, rust, openssl, venv, dependencies)
@@ -55,7 +55,7 @@ cd xbot && source .venv/bin/activate
 ## 🐧 INSTAL DI LINUX / macOS
 
 ```bash
-git clone https://github.com/Gfast416/xbot.git
+git clone https://github.com/nolimitool/xbot.git
 cd xbot
 bash setup.sh
 source .venv/bin/activate
