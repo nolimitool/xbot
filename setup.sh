@@ -9,7 +9,7 @@ if [ -d "/data/data/com.termux" ] || [ -n "$TERMUX_VERSION" ]; then
     echo "[*] Termux terdeteksi"
     pkg update -y
     # python-dev di Termux sudah include di paket 'python' -> jangan install python-dev
-    pkg install -y python rust openssl pkg-config git libxml2 libxslt
+    pkg install -y python rust openssl pkg-config git libxml2 libxslt clang
 else
     echo "[*] Linux/macOS detected"
     if ! command -v python3 >/dev/null; then
@@ -34,8 +34,18 @@ source .venv/bin/activate
 pip install --upgrade pip
 
 # 4. install deps
-#   curl_cffi butuh rust + openssl di Termux/Linux -> sudah di-install di atas
+#   twikit + curl_cffi. curl_cffi butuh rust + openssl (sudah di-install di atas).
 pip install -r requirements.txt
+
+# 5. Pastikan curl_cffi bisa di-load. Di Termux wheel kadang build buat
+#    Python 3.13 tapi Termux pakai 3.14 -> dlopen gagal (libpython3.13.so missing).
+#    Fix: rebuild from source terhadap Python yg terpasang.
+if ! python -c "import curl_cffi" 2>/dev/null; then
+    echo "[*] curl_cffi gak ke-load, rebuild from source..."
+    pip install --no-binary curl_cffi curl_cffi
+fi
+python -c "import curl_cffi; print('[ok] curl_cffi:', curl_cffi.__version__)" || \
+    echo "[warn] curl_cffi tetap gagal load - login bisa ke-block Cloudflare"
 
 echo ""
 echo "=== INSTALL SELESAI ==="
