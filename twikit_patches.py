@@ -13,23 +13,42 @@ import re
 
 def apply_keybyte_fix():
     """X (Maret 2026) sudah hapus ondemand.s dari HTML/JS -> regex gak match.
-    Kita bypass: get_indices return default, init skip home-page fetch."""
+    Kita bypass: get_indices return default, init skip home-page fetch.
+
+    Hardened untuk twikit 2.3.x: hanya set attr yg emang ada di class,
+    jadi gak crash kalau versi twikit beda.
+    """
     try:
         from twikit.x_client_transaction import transaction as T
+        CT = T.ClientTransaction
 
         async def _fake_get_indices(self, home_page_response, session, headers):
             return 1, list(range(2, 18))
 
         async def _fake_init(self, session, headers):
-            self.DEFAULT_ROW_INDEX = 1
-            self.DEFAULT_KEY_BYTES_INDICES = list(range(2, 18))
+            # hanya set attr yg ada, biar aman lintas versi
+            if hasattr(self, "DEFAULT_ROW_INDEX"):
+                self.DEFAULT_ROW_INDEX = 1
+            if hasattr(self, "DEFAULT_KEY_BYTES_INDICES"):
+                self.DEFAULT_KEY_BYTES_INDICES = list(range(2, 18))
             import base64
+            # key default twikit (obfiowerehiring...) sebagai fallback kalau
+            # X beneran gak kasih key lewat HTML.
             self.key = base64.b64encode(b"obfiowerehiring0123456789abcdef").decode()
             self.key_bytes = list(base64.b64decode(self.key))
-            self.animation_key = "00000000000000000000000000000000"
+            # animation_key WAJIB ada sebelum generate_transaction_id dipanggil
+            # (twikit 2.3.x baca self.animation_key, bukan cuma get_animation_key()).
+            try:
+                self.animation_key = "00000000000000000000000000000000"
+            except AttributeError:
+                # kalau class pakai __slots__ tanpa animation_key, lewati
+                pass
+            # tandai sudah init biar generate_transaction_id gak fetch ulang
+            self.initialized = True
 
-        T.ClientTransaction.get_indices = _fake_get_indices
-        T.ClientTransaction.init = _fake_init
+        CT.get_indices = _fake_get_indices
+        CT.init = _fake_init
+        print("[ok] KEY_BYTE / x_client_transaction fix aktif (twikit 2.3.x)")
     except Exception as e:
         print(f"[warn] keybyte fix: {e}")
 

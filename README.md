@@ -12,9 +12,20 @@ mode cookies — lihat bawah).
 
 > 🔧 **Catatan teknis:** twikit versi terbaru (2.3.3) rusak sejak X ubah format
 > webpack Maret 2026 (`Couldn't get KEY_BYTE indices`). Tool ini sudah sertakan
-> `twikit_patches.py` yang **otomatis fix** bug itu + ganti TLS ke impersonate
-> Chrome (curl_cffi) biar gak ke-detect datacenter. Gak perlu utak-atik
-> site-packages.
+> `twikit_patches.py` yang **otomatis fix** bug itu (set `key`/`key_bytes`/`animation_key`
+> default + bypass `init` home-page fetch) biar `generate_transaction_id()` jalan
+> tanpa error.
+>
+> **curl_cffi (TLS impersonate Chrome):** di Termux ARM64 + Python 3.14 **gak bisa**
+> (wheel build buat 3.13 → `libpython3.13.so` hilang; rebuild source → crash NDK
+> symbol). Jadi `twikit_patches.py` **skip curl_cffi graceful** dan pakai `httpx` biasa.
+> Di desktop Linux/macOS x86_64 curl_cffi biasanya jalan (TLS lebih mirip Chrome).
+>
+> **Bug cookies (PENTING):** `twikit.load_cookies()` butuh **path file**, bukan dict.
+> State xbot menyimpan cookies sebagai **dict** `{name: value}`, jadi `xbot.py`
+> memakai `client.set_cookies(dict)` (bukan `load_cookies(dict)` yang crash). Ini
+> sudah dibenerin — jalur cookies (satu-satunya yang tembus kalau IP lu ke-block)
+> sekarang jalan.
 
 ---
 
@@ -95,9 +106,22 @@ python load_cookies_xbot.py Agent_Opet cookies_Agent_Opet.json
 python xbot.py test   # harusnya ct0 + auth_token = ADA
 ```
 
----
+### RESET session kalau cookies expired (X tolak)
+```bash
+# flush cache runtime saja (cookies tetap, client dibuat ulang next aksi)
+python xbot.py clear
 
-## 🚀 PENGGUNAAN
+# flush + hapus cookies dari state (harus login ulang / load cookies segar)
+python xbot.py clear --cookies
+```
+
+### Set proxy default per akun (biar login & aksi pakai IP sama)
+```bash
+python xbot.py proxy --all "http://user:pass@host:port"
+python xbot.py proxy --username Agent_Opet "http://user:pass@host:port"
+```
+
+---
 
 Semua aksi support `--accounts` (pilih akun) dan `--delay` (jeda anti-detect).
 
@@ -181,7 +205,9 @@ xbot/
 | `ModuleNotFoundError: twikit` | `source .venv/bin/activate` lalu `pip install -r requirements.txt` |
 | `Couldn't get KEY_BYTE indices` | Sudah di-fix otomatis `twikit_patches.py`. Pastikan file itu ada di folder yang sama dengan `xbot.py`. |
 | Login `403 Forbidden` / Cloudflare block | IP lu ke-block. Pakai `--proxy` residensial, atau cara cookies (lihat atas). |
-| `curl_cffi` gagal load di Termux (`libpython3.13.so not found`) | Wheel curl_cffi build buat Python 3.13 tapi Termux pakai 3.14. Rebuild from source: `pkg install -y clang` lalu `pip install --no-binary curl_cffi curl_cffi`. `setup.sh` sudah otomatis rebuild kalau import gagal. |
+| `curl_cffi` gagal load di Termux (`libpython3.so not found` / NDK symbol) | **Normal di Termux ARM64 + Py3.14.** xbot otomatis skip curl_cffi & pakai `httpx` biasa (lihat `[info] curl_cffi gak aktif`). Gak perlu rebuild. Kalau mau TLS-Chrome, jalanin di desktop Linux x86_64. |
+| Aksi gagal `TypeError: expected str, bytes or os.PathLike` pas load cookies | Sudah dibenerin: `xbot.py` pakai `set_cookies(dict)`, bukan `load_cookies(dict)`. Pastikan `twikit_patches.py` + `xbot.py` versi terbaru. |
+| `X-Client-Transaction` / `generate_transaction_id` error | Sudah di-fix `twikit_patches.py` (set `animation_key` + bypass `init`). Pastikan file ada di folder sama. |
 | Tweet URL gak dikenali | Pakai format `https://x.com/user/status/1234567890` atau langsung ID numerik |
 | `command not found: python` | Di beberapa distro pakai `python3` — ganti `python` jadi `python3` |
 

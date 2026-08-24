@@ -38,9 +38,12 @@ async def main():
         print("[*] Setelah login + verifikasi selesai, tekan ENTER di terminal ini.")
         input("    (tekannya setelah yakin SUDAH MASUK ke x.com) >>> ")
         cookies = await ctx.cookies()
-        ct0 = next((c["value"] for c in cookies if c["name"] == "ct0"), None)
-        auth = next((c["value"] for c in cookies if c["name"] == "auth_token"), None)
-        Path(OUT(user)).write_text(json.dumps(cookies, indent=2))
+        # Convert ke dict {name: value} biar kompatibel langsung dengan
+        # twikit set_cookies(dict) / load_cookies_xbot.py format state.
+        ck_dict = {c["name"]: c["value"] for c in cookies}
+        ct0 = ck_dict.get("ct0")
+        auth = ck_dict.get("auth_token")
+        Path(OUT(user)).write_text(json.dumps(ck_dict, indent=2))
         print(f"[OK] Cookies disimpan -> {OUT(user)}")
         print(f"     ct0     : {'ADA' if ct0 else 'TIDAK ADA'}")
         print(f"     auth_token: {'ADA' if auth else 'TIDAK ADA'}")

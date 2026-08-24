@@ -77,6 +77,8 @@ async def cmd_login(args):
             ck = await do_login(st, acc["username"], acc["auth_info_1"],
                                 acc.get("auth_info_2"), acc["password"], args.proxy)
             acc["cookies"] = ck
+            if args.proxy:
+                acc["proxy"] = args.proxy
             save_state(st)
             print(f"    OK cookies tersimpan ({len(ck)} item)")
         except Exception as e:
@@ -108,15 +110,84 @@ async def cmd_test(args):
         has = "✓ cookies" if a.get("cookies") else "✗ belum login"
         print(f"  {a['username']} ({has})")
 
+_CLIENTS = {}  # cache per-akun supaya session reuse (gak recreate tiap aksi)
+
+async def cmd_clear(args):
+    """Hapus cache client runtime + (opsional) cookies dari state.
+    Dipakai kalau session expired / X tolak cookies lama."""
+    global _CLIENTS
+    _CLIENTS = {}
+    if args.cookies:
+        st = load_state()
+        for a in st["accounts"]:
+            a["cookies"] = None
+        save_state(st)
+        print("[OK] Semua cookies di-reset dari state.")
+    else:
+        print("[OK] Cache client runtime di-flush (cookies tetap tersimpan).")
+
+
+async def cmd_proxy(args):
+    """Set proxy default untuk satu/ semua akun di state."""
+    st = load_state()
+    targets = st["accounts"] if args.all else [a for a in st["accounts"] if a["username"] == args.username]
+    if not targets:
+        print("Akun gak ketemu."); return
+    for a in targets:
+        a["proxy"] = args.proxy
+    save_state(st)
+    print(f"[OK] Proxy {args.proxy} diset ke {len(targets)} akun.")
+
+
 async def get_client(acc):
-    c = Client("en-US")
+    """Ambil client yg SUDAH login.
+    - Kalau ada cookies (dict dari load_cookies_xbot), pakai set_cookies(dict).
+      NOTE: twikit.load_cookies() butuh PATH string, bukan dict -> kita pakai
+      set_cookies(dict) yang memang nerima {name: value}.
+    - Kalau gak ada cookies, login user:pass (sering ke-block di IP Indo).
+    - Proxy ikut dibawa biar session konsisten dengan waktu login.
+    """
+    uname = acc["username"]
+    if uname in _CLIENTS and _CLIENTS[uname] is not None:
+        return _CLIENTS[uname]
+    proxy = acc.get("proxy")
+    c = Client("en-US", proxy=proxy)
     if acc.get("cookies"):
-        c.load_cookies(acc["cookies"])
+        # cookies disimpan sbg dict {name: value} (format get_cookies/set_cookies)
+        c.set_cookies(acc["cookies"])
     else:
         await c.login(auth_info_1=acc["auth_info_1"],
                       auth_info_2=acc.get("auth_info_2"),
                       password=acc["password"])
+    _CLIENTS[uname] = c
     return c
+
+async def refresh_client(acc):
+    """Paksa buat ulang client (dipakai kalau session expired/invalid)."""
+    _CLIENTS.pop(acc["username"], None)
+    return await get_client(acc)
+
+async def safe_action(fn, acc, max_retries=3):
+    """Jalankan aksi X dengan retry + backoff. Rotate proxy kalau disediakan."""
+    last: Exception | None = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            client = await get_client(acc)
+            return await fn(client)
+        except Exception as e:
+            last = e
+            msg = str(e)
+            # Session invalid / cookies expired -> buang cache, login ulang next try
+            if any(k in msg for k in ("Unauthorized", "401", "auth_token", "ct0",
+                                      "Could not find", "Invalid", "guest")):
+                await refresh_client(acc)
+            if attempt < max_retries:
+                back = min(30, 2 ** attempt + random.uniform(0, 2))
+                print(f"    [retry {attempt}] {acc['username']}: {type(e).__name__} -> tunggu {back:.1f}s")
+                await asyncio.sleep(back)
+    if last is None:
+        raise RuntimeError("safe_action: no attempt executed (max_retries must be >=1)")
+    raise last
 
 async def run_action(st, action, text, tweet_id, filt, dry, delay, rounds):
     accs = st["accounts"]
@@ -135,22 +206,17 @@ async def run_action(st, action, text, tweet_id, filt, dry, delay, rounds):
                 print(f"[DRY] {a['username']}: {action} -> {t or tweet_id}")
                 continue
             try:
-                client = await get_client(a)
-            except Exception as e:
-                print(f"[X] {a['username']} login gagal: {e}")
-                continue
-            try:
                 if action == "post":
-                    tw = await client.create_tweet(text=t)
+                    tw = await safe_action(lambda cl: cl.create_tweet(text=t), a)
                     print(f"[OK] {a['username']}: POST -> {tw.id}")
                 elif action == "reply":
-                    tw = await client.create_tweet(text=t, reply_to=tweet_id)
+                    tw = await safe_action(lambda cl: cl.create_tweet(text=t, reply_to=tweet_id), a)
                     print(f"[OK] {a['username']}: REPLY -> {tw.id}")
                 elif action == "like":
-                    await client.favorite_tweet(tweet_id)
+                    await safe_action(lambda cl: cl.favorite_tweet(tweet_id), a)
                     print(f"[OK] {a['username']}: LIKE {tweet_id}")
                 elif action == "retweet":
-                    await client.retweet(tweet_id)
+                    await safe_action(lambda cl: cl.retweet(tweet_id), a)
                     print(f"[OK] {a['username']}: RETWEET {tweet_id}")
             except Exception as e:
                 print(f"[FAIL] {a['username']}: {type(e).__name__}: {e}")
@@ -219,10 +285,21 @@ def main():
     prt.add_argument("--rounds", type=int, default=1)
     prt.add_argument("--dry", action="store_true")
 
+    pc = sub.add_parser("clear", help="Flush cache / reset cookies (kalau session expired)")
+    pc.add_argument("--cookies", action="store_true", help="juga hapus cookies dari state")
+    pc.add_argument("--all", action="store_true")
+
+    pp2 = sub.add_parser("proxy", help="Set proxy default untuk akun")
+    pp2.add_argument("--username", default=None)
+    pp2.add_argument("--all", action="store_true")
+    pp2.add_argument("proxy")
+
     args = p.parse_args()
     if args.cmd == "add": asyncio.run(cmd_add(args))
     elif args.cmd == "login": asyncio.run(cmd_login(args))
     elif args.cmd == "test": asyncio.run(cmd_test(args))
+    elif args.cmd == "clear": asyncio.run(cmd_clear(args))
+    elif args.cmd == "proxy": asyncio.run(cmd_proxy(args))
     else: asyncio.run(dispatch(args))
 
 if __name__ == "__main__":
